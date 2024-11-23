@@ -1,5 +1,7 @@
 with import <nixpkgs> {};
-mkShell {
+mkShell.override {
+  stdenv = llvmPackages.stdenv;
+} {
   packages = [
     cmake
     neocmakelsp
