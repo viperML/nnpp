@@ -22,12 +22,11 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  auto m = Matrix<double>(4, 3);
+  auto A = Matrix<double>(3, 3, -1.0);
+  auto B = Matrix<double>(3, 3, 2.0);
 
-  m.set(0, 0, 1.1);
-  m.set(1, 0, 2.1);
-  m.set(1, 1, 3.1);
-  std::cout << m.display() << std::endl;
+  auto C = A * B;
+  std::cout << C.display() << std::endl;
 
   return EXIT_SUCCESS;
 }
