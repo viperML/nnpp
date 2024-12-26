@@ -10,6 +10,7 @@ target_sources(
     nn++
     PUBLIC
     main.cpp
+    mnist.cpp
 )
 
 
