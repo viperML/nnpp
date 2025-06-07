@@ -1,26 +1,32 @@
 #include <cstddef>
+#include <filesystem>
+#include <iostream>
+
 #include "matrix.hpp"
+#include "mnist.hpp"
 
 using namespace matrix;
 
 int main() {
+    auto cwd = std::filesystem::current_path();
 
-    auto a = Matrix(2, 3, [](size_t i, size_t j) {
-        return 1.0f * (i*3 + j + 1);
-    });
+    std::cout << "Loading MNIST dataset..." << std::endl;
+    auto [images, labels] =
+        mnist::load_mnist((cwd / "data" / "train-images.idx3-ubyte").string(),
+                          (cwd / "data" / "train-labels.idx1-ubyte").string());
+    std::cout << "Done" << std::endl;
 
-    auto b = Matrix(3,2, [](auto i, auto j) {
-        return 1.0f * ((i+1)*10 + j);
-    });
+    std::cout << "Number of images: " << images.size() << std::endl;
+    std::cout << "Number of labels: " << labels.size() << std::endl;
 
 
-    a.print();
-    b.print();
+    auto im = images[0];
+    auto la = labels[0];
 
-    auto res = Matrix(2,2);
+    std::cout << "First image dimensions: " << im.N << "x" << im.M << std::endl;
+    std::cout << "First label: " << static_cast<int>(la) << std::endl;
 
-    a.multiply_into(b, res);
-    res.print();
+    im.print();
 
     return 0;
 }

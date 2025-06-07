@@ -12,6 +12,7 @@ target_sources(
     PUBLIC
     main.cpp
     matrix.cpp
+    mnist.cpp
 )
 
 target_compile_options(nn++ PRIVATE -fsanitize=address)

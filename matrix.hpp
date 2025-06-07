@@ -1,3 +1,6 @@
+#ifndef MATRIX_HPP
+#define MATRIX_HPP
+
 #include <cstddef>
 #include <iostream>
 #include <vector>
@@ -6,11 +9,11 @@ namespace matrix {
 
 class Matrix {
   private:
-    size_t N;
-    size_t M;
     std::vector<float> data;
 
   public:
+    size_t N;
+    size_t M;
     Matrix(size_t n, size_t m, float seed) : N(n), M(m), data(n * m, seed) {};
     Matrix(size_t n, size_t m) : Matrix(n, m, 0.0f) {};
 
@@ -27,11 +30,28 @@ class Matrix {
     void print() {
         std::cout << "Matrix " << this->N << "x" << this->M << ": "
                   << std::endl;
-        for (size_t i = 0; i < N; ++i) {
-            for (size_t j = 0; j < M; ++j) {
+
+        size_t max_rows = std::min(N, static_cast<size_t>(5));
+        size_t max_cols = std::min(M, static_cast<size_t>(5));
+
+        for (size_t i = 0; i < max_rows; ++i) {
+            for (size_t j = 0; j < max_cols; ++j) {
                 std::cout << std::scientific;
                 std::cout.precision(3);
                 std::cout << data[i * M + j] << " ";
+            }
+            if (M > 5) {
+                std::cout << "... ";
+            }
+            std::cout << std::endl;
+        }
+
+        if (N > 5) {
+            for (size_t j = 0; j < max_cols; ++j) {
+                std::cout << "... ";
+            }
+            if (M > 5) {
+                std::cout << "... ";
             }
             std::cout << std::endl;
         }
@@ -51,3 +71,5 @@ class Matrix {
 };
 
 }  // namespace matrix
+
+#endif  // MATRIX_HPP
