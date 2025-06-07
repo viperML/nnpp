@@ -68,6 +68,12 @@ class Matrix {
         }
         return data[i * M + j];
     }
+
+    void apply(float (*func)(float)) {
+        for (auto& value : data) {
+            value = func(value);
+        }
+    }
 };
 
 }  // namespace matrix
