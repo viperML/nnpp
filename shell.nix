@@ -7,6 +7,7 @@ mkShell.override { stdenv = clangStdenv; } {
     neocmakelsp
     clang-tools
     unzip
+    gtest
   ];
 
   hardeningDisable = ["all"];
