@@ -61,6 +61,9 @@ class Matrix {
     // Result must be a valid matrix with the proper size.
     void multiply_into(const Matrix& B, Matrix& result);
 
+    // Permorms result=this * B^T
+    void multiply_transpose_into(const Matrix& B, Matrix& result);
+
     // Index a value
     float& operator()(size_t i, size_t j) {
         if (i >= N || j >= M) {
@@ -85,6 +88,38 @@ class Matrix {
             data[i] += B.data[i];
         }
     }
+
+    template <typename Func>
+    void elementwise_into(Matrix& B, Matrix& C, Func func) {
+        if (N != B.N || M != B.M || N != C.N || M != C.M) {
+            throw std::invalid_argument("Matrix dimensions must match for elementwise operation");
+        }
+        for (size_t i = 0; i < N * M; ++i) {
+            C.data[i] = func(data[i], B.data[i]);
+        }
+    }
+
+    Matrix cloned() {
+        Matrix res(this->N, this->M);
+        std::vector<float> new_data(this->data);  // Clone
+        res.data = std::move(new_data);
+        return res;
+    }
+
+    Matrix clone_seeded(float seed) {
+        Matrix res(this->N, this->M, seed);
+        return res;
+    }
+
+    void operator-=(Matrix& B) {
+        if (N != B.N || M != B.M) {
+            throw std::invalid_argument("Matrix dimensions must match for subtraction");
+        }
+        for (size_t i = 0; i < N * M; ++i) {
+            data[i] -= B.data[i];
+        }
+    }
+
 };
 
 }  // namespace matrix

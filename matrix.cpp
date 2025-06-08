@@ -28,4 +28,8 @@ void Matrix::multiply_into(const Matrix& B, Matrix& result) {
     }
 }
 
+void Matrix::multiply_transpose_into(const Matrix& B, Matrix& result) {
+
+}
+
 }  // namespace matrix

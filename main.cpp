@@ -40,25 +40,38 @@ int main() {
     };
 
     // N0 is images[number]
-    auto N1 = Matrix(16, 1);
-    auto N2 = Matrix(16, 1);
-    auto N3_predict = Matrix(10, 1);
-    auto N3_actual = Matrix(10, 1);
+    Matrix N1(16, 1);
+    Matrix N2(16, 1);
+    Matrix N3(10, 1);
+    Matrix N3_actual(10, 1);
 
-    auto B1 = Matrix(N1.N, N1.M, init);
-    auto B2 = Matrix(N2.N, N2.M, init);
-    auto B3 = Matrix(N3_predict.N, N3_predict.M, init);
+    auto N1_prev = N1.cloned();
+    auto N2_prev = N2.cloned();
+    auto N3_prev = N3.cloned();
 
-    auto W0 = Matrix(N1.N, images[0].N, init);
-    auto W1 = Matrix(N2.N, N1.N, init);
-    auto W2 = Matrix(N3_predict.N, N2.N, init);
+    Matrix B1(N1.N, N1.M, init);
+    Matrix B2(N2.N, N2.M, init);
+    Matrix B3(N3.N, N3.M, init);
+
+    Matrix W0(N1.N, images[0].N, init);
+    Matrix W1(N2.N, N1.N, init);
+    Matrix W2(N3.N, N2.N, init);
+
+    auto dW0 = W0.clone_seeded(0.0f);
+    auto dW1 = W1.clone_seeded(0.0f);
+    auto dW2 = W2.clone_seeded(0.0f);
+    auto dB1 = B1.clone_seeded(0.0f);
+    auto dB2 = B2.clone_seeded(0.0f);
+    auto dB3 = B3.clone_seeded(0.0f);
 
     auto epochs = 100;
+
+    float learning_rate = 0.01f;
 
     for (auto epoch : std::views::iota(0, epochs)) {
         auto doPrint = epoch % 10 == 0;
 
-        doPrint && std::cout <<  std::endl << "=> Epoch " << epoch << std::endl;
+        doPrint&& std::cout << std::endl << "=> Epoch " << epoch << std::endl;
 
         auto im = images[epoch];
         auto la = labels[epoch];
@@ -80,19 +93,28 @@ int main() {
         N2.apply(sigmoid);
 
         /// Final layer
-        W2.multiply_into(N2, N3_predict);
-        N3_predict.sum_into(B3);
-        N3_predict.apply(sigmoid);
-        doPrint ? N3_predict.print() : void();
+        W2.multiply_into(N2, N3);
+        N3.sum_into(B3);
+        N3.apply(sigmoid);
+        doPrint ? N3.print() : void();
 
         // Cost calculation
         float cost = 0.0f;
         for (size_t i = 0; i < 10; i++) {
-            auto diff = N3_predict(i, 0) - N3_actual(i, 0);
+            auto diff = N3(i, 0) - N3_actual(i, 0);
             cost += diff * diff;
         }
 
-        doPrint && std::cout << std::fixed << "Cost: " << cost  << std::endl;
+        doPrint&& std::cout << std::fixed << "Cost: " << cost << std::endl;
+
+        N3.elementwise_into(N3_actual, dB3, [learning_rate](auto n3, auto n3a) {
+            return (n3 - n3a) * learning_rate;
+        });
+        dB3.multiply_into(N2, dW2); // FIXME
+        W2 -= dW2;
+
+
+
     }
 
     return 0;
