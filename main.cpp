@@ -53,7 +53,7 @@ int main() {
     auto epochs = 3;
 
     for (auto epoch : std::views::iota(0, epochs)) {
-        std::cout << "Epoch: " << epoch << std::endl;
+        std::cout << std::endl << "=> Epoch: " << epoch << std::endl;
 
         auto im = images[epoch];
         auto la = labels[epoch];
