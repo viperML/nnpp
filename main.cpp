@@ -76,9 +76,10 @@ int main() {
     auto dB2 = B2.clone_seeded(0.0f);
     auto dB3 = B3.clone_seeded(0.0f);
 
-    auto epochs = 10000;
+    auto epochs = std::max(static_cast<size_t>(10000), images.size());
+    bool do_break = false;
 
-    for (auto epoch : std::views::iota(0, epochs)) {
+    for (auto epoch : std::views::iota(static_cast<size_t>(0), epochs)) {
         auto im = images[epoch];
         auto la = labels[epoch];
 
@@ -93,21 +94,18 @@ int main() {
         Z1.sum_into(B1);
         Z1.clone_into(N1);
         N1.apply(sigmoid);
-        Z1.apply(sigmoid_derivative);
 
         /// Second hidden layer
         W1.multiply_into(N1, Z2);
         Z2.sum_into(B2);
         Z2.clone_into(N2);
         N2.apply(sigmoid);
-        Z2.apply(sigmoid_derivative);
 
         /// Final layer
         W2.multiply_into(N2, Z3);
         Z3.sum_into(B3);
         Z3.clone_into(N3);
         N3.apply(sigmoid);
-        Z3.apply(sigmoid_derivative);
 
         // Cost calculation
         float cost = 0.0f;
@@ -115,7 +113,10 @@ int main() {
             auto diff = N3(i, 0) - N3_actual(i, 0);
             cost += diff * diff;
         }
-        float learning_rate = cost * 0.01f;
+        if (cost <= 0.001f) {
+            do_break = true;
+        }
+        float learning_rate = 0.1f;  // Fixed learning rate
 
         // N3.elementwise_into(N3_actual, dB3, [learning_rate](auto n3, auto
         // n3a) {
@@ -133,12 +134,18 @@ int main() {
 
         // W2.multiply_into(dB3, dB2);
         W2.transpose_multiply_into(dB3, dB2);
-        dB2.elementwise_into(Z2, dB2, [](auto left, auto right) {
+        // Apply sigmoid derivative to the pre-activation values (Z2)
+        auto Z2_sigmoid_deriv = Z2.cloned();
+        Z2_sigmoid_deriv.apply(sigmoid_derivative);
+        dB2.elementwise_into(Z2_sigmoid_deriv, dB2, [](auto left, auto right) {
             return left * right;
         });
 
         W1.transpose_multiply_into(dB2, dB1);
-        dB1.elementwise_into(Z1, dB1, [](auto left, auto right) {
+        // Apply sigmoid derivative to the pre-activation values (Z1)
+        auto Z1_sigmoid_deriv = Z1.cloned();
+        Z1_sigmoid_deriv.apply(sigmoid_derivative);
+        dB1.elementwise_into(Z1_sigmoid_deriv, dB1, [](auto left, auto right) {
             return left * right;
         });
 
@@ -171,8 +178,7 @@ int main() {
             return w - dw * learning_rate;
         });
 
-
-        if (epoch % (epochs / 10) == 0) {
+        if (epoch % (epochs / 10) == 0 || do_break) {
             std::cout << std::fixed;
             std::cout << std::endl << "=> Epoch: " << epoch << std::endl;
             std::cout << "Cost: " << cost << std::endl;
@@ -188,6 +194,8 @@ int main() {
                 std::cout << N3_actual(i, 0) << " ";
             }
         }
+
+        if (do_break) break;
     }
 
     return 0;
