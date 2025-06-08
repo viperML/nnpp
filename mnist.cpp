@@ -1,8 +1,11 @@
 #include "mnist.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <stdexcept>
+
+#include "matrix.hpp"
 
 namespace mnist {
 
@@ -17,7 +20,8 @@ uint32_t read_uint32_be(std::ifstream& file) {
 
 // Function to load MNIST training dataset
 std::pair<std::vector<matrix::Matrix>, std::vector<uint8_t>> load_mnist(
-    const std::string& images_path, const std::string& labels_path) {
+    const std::string& images_path, const std::string& labels_path
+) {
     std::vector<matrix::Matrix> images;
     std::vector<uint8_t> labels;
 
@@ -59,9 +63,9 @@ std::pair<std::vector<matrix::Matrix>, std::vector<uint8_t>> load_mnist(
     labels.reserve(num_images);
 
     // Read image and label data
-    for (uint32_t i = 0; i < num_images; ++i) {
-        // Create matrix for this image
-        matrix::Matrix image(rows, cols);
+    // for (uint32_t i = 0; i < num_images; ++i) {
+    for (size_t i = 0; i < num_images; i++) {
+        matrix::Matrix image(rows * cols, 1);
 
         // Read pixel data
         for (size_t row = 0; row < rows; ++row) {
@@ -69,7 +73,7 @@ std::pair<std::vector<matrix::Matrix>, std::vector<uint8_t>> load_mnist(
                 uint8_t pixel;
                 images_file.read(reinterpret_cast<char*>(&pixel), 1);
                 // Normalize pixel value to [0,1] range
-                image(row, col) = static_cast<float>(pixel) / 255.0f;
+                image(row * cols + col, 0) = static_cast<float>(pixel) / 255.0f;
             }
         }
 

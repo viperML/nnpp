@@ -1,7 +1,8 @@
-#include <vector>
+#include <cstdint>
 #include <string>
 #include <utility>
-#include <cstdint>
+#include <vector>
+
 #include "matrix.hpp"
 
 namespace mnist {
@@ -12,4 +13,4 @@ std::pair<std::vector<matrix::Matrix>, std::vector<uint8_t>> load_mnist(
     const std::string& labels_path = "./data/train-labels.idx1-ubyte"
 );
 
-}
+}  // namespace mnist

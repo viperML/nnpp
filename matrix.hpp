@@ -14,15 +14,15 @@ class Matrix {
   public:
     size_t N;
     size_t M;
-    Matrix(size_t n, size_t m, float seed) : N(n), M(m), data(n * m, seed) {};
+    Matrix(size_t n, size_t m, float seed) : data(n * m, seed), N(n), M(m) {};
     Matrix(size_t n, size_t m) : Matrix(n, m, 0.0f) {};
 
-    // From a lambda n,m to float
-    Matrix(size_t n, size_t m, float (*lambda)(size_t, size_t))
-        : N(n), M(m), data(n * m) {
+    // Template constructor for function objects (lambdas with captures)
+    template <typename Func>
+    Matrix(size_t n, size_t m, Func func) : data(n * m), N(n), M(m) {
         for (size_t i = 0; i < n; ++i) {
             for (size_t j = 0; j < m; ++j) {
-                data[i * m + j] = lambda(i, j);
+                data[i * m + j] = func(i, j);
             }
         }
     }
@@ -69,9 +69,20 @@ class Matrix {
         return data[i * M + j];
     }
 
-    void apply(float (*func)(float)) {
+    template <typename Func>
+    void apply(Func func) {
         for (auto& value : data) {
             value = func(value);
+        }
+    }
+
+    // Element-wise sum all elements of B into this
+    void sum_into(Matrix& B) {
+        if (N != B.N || M != B.M) {
+            throw std::invalid_argument("Matrix dimensions must match for sum");
+        }
+        for (size_t i = 0; i < N * M; ++i) {
+            data[i] += B.data[i];
         }
     }
 };
