@@ -328,3 +328,194 @@ TEST(MatrixTest, RectangularTransposeMultiplication) {
     EXPECT_FLOAT_EQ(result(1, 0), 53.0f);
     EXPECT_FLOAT_EQ(result(2, 3), 149.0f);
 }
+
+// Tests for transpose_multiply_into function (A^T * B)
+
+// Test basic transpose multiplication with simple 2x2 matrices
+TEST(MatrixTest, BasicTransposeMultiplyInto2x2) {
+    // Create matrices A and B
+    Matrix A(2, 2);
+    Matrix B(2, 2);
+    Matrix result(2, 2);
+
+    // Set up A = [[1, 2], [3, 4]]
+    A(0, 0) = 1.0f; A(0, 1) = 2.0f;
+    A(1, 0) = 3.0f; A(1, 1) = 4.0f;
+
+    // Set up B = [[5, 6], [7, 8]]
+    B(0, 0) = 5.0f; B(0, 1) = 6.0f;
+    B(1, 0) = 7.0f; B(1, 1) = 8.0f;
+
+    // Perform A^T * B where A^T = [[1, 3], [2, 4]]
+    A.transpose_multiply_into(B, result);
+
+    // Expected result: A^T * B = [[1*5+3*7, 1*6+3*8], [2*5+4*7, 2*6+4*8]]
+    //                            = [[26, 30], [38, 44]]
+    EXPECT_FLOAT_EQ(result(0, 0), 26.0f);
+    EXPECT_FLOAT_EQ(result(0, 1), 30.0f);
+    EXPECT_FLOAT_EQ(result(1, 0), 38.0f);
+    EXPECT_FLOAT_EQ(result(1, 1), 44.0f);
+}
+
+// Test transpose multiplication with non-square matrices
+TEST(MatrixTest, NonSquareTransposeMultiplyInto) {
+    // (3x2)^T * (3x2) = 2x3 * 3x2 = 2x2
+    Matrix A(3, 2);
+    Matrix B(3, 2);
+    Matrix result(2, 2);
+
+    // Set up A = [[1, 2], [3, 4], [5, 6]]
+    A(0, 0) = 1.0f; A(0, 1) = 2.0f;
+    A(1, 0) = 3.0f; A(1, 1) = 4.0f;
+    A(2, 0) = 5.0f; A(2, 1) = 6.0f;
+
+    // Set up B = [[7, 8], [9, 10], [11, 12]]
+    B(0, 0) = 7.0f;  B(0, 1) = 8.0f;
+    B(1, 0) = 9.0f;  B(1, 1) = 10.0f;
+    B(2, 0) = 11.0f; B(2, 1) = 12.0f;
+
+    // A^T = [[1, 3, 5], [2, 4, 6]]
+    // Perform multiplication A^T * B
+    A.transpose_multiply_into(B, result);
+
+    // Expected result: [[1*7+3*9+5*11, 1*8+3*10+5*12], [2*7+4*9+6*11, 2*8+4*10+6*12]]
+    //                  = [[89, 98], [116, 128]]
+    EXPECT_FLOAT_EQ(result(0, 0), 89.0f);
+    EXPECT_FLOAT_EQ(result(0, 1), 98.0f);
+    EXPECT_FLOAT_EQ(result(1, 0), 116.0f);
+    EXPECT_FLOAT_EQ(result(1, 1), 128.0f);
+}
+
+// Test transpose multiplication with identity matrix
+TEST(MatrixTest, IdentityTransposeMultiplyInto) {
+    // Create a 2x2 matrix and identity matrix
+    Matrix A(2, 2);
+    Matrix I(2, 2);
+    Matrix result(2, 2);
+
+    // Set up A with some values
+    A(0, 0) = 3.0f; A(0, 1) = 4.0f;
+    A(1, 0) = 5.0f; A(1, 1) = 6.0f;
+
+    // Set up identity matrix
+    I(0, 0) = 1.0f; I(0, 1) = 0.0f;
+    I(1, 0) = 0.0f; I(1, 1) = 1.0f;
+
+    // A^T * I should equal A^T
+    A.transpose_multiply_into(I, result);
+
+    // A^T = [[3, 5], [4, 6]]
+    EXPECT_FLOAT_EQ(result(0, 0), 3.0f);
+    EXPECT_FLOAT_EQ(result(0, 1), 5.0f);
+    EXPECT_FLOAT_EQ(result(1, 0), 4.0f);
+    EXPECT_FLOAT_EQ(result(1, 1), 6.0f);
+}
+
+// Test zero matrix transpose multiplication
+TEST(MatrixTest, ZeroMatrixTransposeMultiplyInto) {
+    Matrix A(2, 2, 5.0f);  // Fill with 5.0f
+    Matrix B(2, 2, 0.0f);  // Fill with 0.0f (zero matrix)
+    Matrix result(2, 2);
+
+    // A^T * 0 should equal 0
+    A.transpose_multiply_into(B, result);
+
+    for (size_t i = 0; i < 2; ++i) {
+        for (size_t j = 0; j < 2; ++j) {
+            EXPECT_FLOAT_EQ(result(i, j), 0.0f);
+        }
+    }
+}
+
+// Test dimension mismatch errors for transpose multiplication
+TEST(MatrixTest, TransposeMultiplyIntoDimensionMismatchError) {
+    Matrix A(2, 3);  // 2x3, A^T would be 3x2
+    Matrix B(3, 2);  // 3x2, but A.N (2) != B.N (3)
+    Matrix result(3, 2);
+
+    // Should throw runtime_error for incompatible dimensions
+    EXPECT_THROW(A.transpose_multiply_into(B, result), std::runtime_error);
+}
+
+// Test incorrect result matrix dimensions for transpose multiplication
+TEST(MatrixTest, TransposeMultiplyIntoIncorrectResultDimensionsError) {
+    Matrix A(3, 2);  // 3x2, A^T is 2x3
+    Matrix B(3, 2);  // 3x2, so result should be 2x2
+    Matrix result(3, 3);  // Wrong size! Should be 2x2
+
+    // Should throw runtime_error for incorrect result dimensions
+    EXPECT_THROW(A.transpose_multiply_into(B, result), std::runtime_error);
+}
+
+// Test single element transpose multiplication
+TEST(MatrixTest, SingleElementTransposeMultiplyInto) {
+    Matrix A(1, 1, 3.0f);
+    Matrix B(1, 1, 4.0f);
+    Matrix result(1, 1);
+
+    A.transpose_multiply_into(B, result);
+
+    // 3^T * 4 = 3 * 4 = 12
+    EXPECT_FLOAT_EQ(result(0, 0), 12.0f);
+}
+
+// Test rectangular matrices with different dimensions
+TEST(MatrixTest, RectangularTransposeMultiplyInto) {
+    // (4x3)^T * (4x2) = 3x4 * 4x2 = 3x2
+    Matrix A(4, 3);
+    Matrix B(4, 2);
+    Matrix result(3, 2);
+
+    // Set up A = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+    A(0, 0) = 1.0f;  A(0, 1) = 2.0f;  A(0, 2) = 3.0f;
+    A(1, 0) = 4.0f;  A(1, 1) = 5.0f;  A(1, 2) = 6.0f;
+    A(2, 0) = 7.0f;  A(2, 1) = 8.0f;  A(2, 2) = 9.0f;
+    A(3, 0) = 10.0f; A(3, 1) = 11.0f; A(3, 2) = 12.0f;
+
+    // Set up B = [[13, 14], [15, 16], [17, 18], [19, 20]]
+    B(0, 0) = 13.0f; B(0, 1) = 14.0f;
+    B(1, 0) = 15.0f; B(1, 1) = 16.0f;
+    B(2, 0) = 17.0f; B(2, 1) = 18.0f;
+    B(3, 0) = 19.0f; B(3, 1) = 20.0f;
+
+    // A^T = [[1, 4, 7, 10], [2, 5, 8, 11], [3, 6, 9, 12]]
+    A.transpose_multiply_into(B, result);
+
+    // Verify a few key elements
+    // result(0,0) = 1*13 + 4*15 + 7*17 + 10*19 = 13 + 60 + 119 + 190 = 382
+    // result(0,1) = 1*14 + 4*16 + 7*18 + 10*20 = 14 + 64 + 126 + 200 = 404
+    // result(1,0) = 2*13 + 5*15 + 8*17 + 11*19 = 26 + 75 + 136 + 209 = 446
+    // result(2,1) = 3*14 + 6*16 + 9*18 + 12*20 = 42 + 96 + 162 + 240 = 540
+    EXPECT_FLOAT_EQ(result(0, 0), 382.0f);
+    EXPECT_FLOAT_EQ(result(0, 1), 404.0f);
+    EXPECT_FLOAT_EQ(result(1, 0), 446.0f);
+    EXPECT_FLOAT_EQ(result(2, 1), 540.0f);
+}
+
+// Test with large matrix to verify performance and correctness
+TEST(MatrixTest, LargeMatrixTransposeMultiplyInto) {
+    // Create larger matrices to test performance
+    Matrix A(100, 50);
+    Matrix B(100, 30);
+    Matrix result(50, 30);
+
+    // Fill with simple values for predictable results
+    for (size_t i = 0; i < 100; ++i) {
+        for (size_t j = 0; j < 50; ++j) {
+            A(i, j) = static_cast<float>(i + j);
+        }
+    }
+
+    for (size_t i = 0; i < 100; ++i) {
+        for (size_t j = 0; j < 30; ++j) {
+            B(i, j) = static_cast<float>(i * j + 1);
+        }
+    }
+
+    // This should not throw and complete in reasonable time
+    EXPECT_NO_THROW(A.transpose_multiply_into(B, result));
+
+    // Verify the result has correct dimensions
+    EXPECT_EQ(result.N, 50);
+    EXPECT_EQ(result.M, 30);
+}

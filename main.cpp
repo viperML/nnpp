@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <backward.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -75,15 +76,9 @@ int main() {
     auto dB2 = B2.clone_seeded(0.0f);
     auto dB3 = B3.clone_seeded(0.0f);
 
-    auto epochs = 100;
-
-    float learning_rate = 0.01f;
+    auto epochs = 10000;
 
     for (auto epoch : std::views::iota(0, epochs)) {
-        auto doPrint = epoch % 10 == 0;
-
-        doPrint&& std::cout << std::endl << "=> Epoch " << epoch << std::endl;
-
         auto im = images[epoch];
         auto la = labels[epoch];
 
@@ -120,8 +115,7 @@ int main() {
             auto diff = N3(i, 0) - N3_actual(i, 0);
             cost += diff * diff;
         }
-
-        doPrint&& std::cout << std::fixed << "Cost: " << cost << std::endl;
+        float learning_rate = cost * 0.01f;
 
         // N3.elementwise_into(N3_actual, dB3, [learning_rate](auto n3, auto
         // n3a) {
@@ -137,17 +131,63 @@ int main() {
             return n3 - n3a;
         });
 
-        W2.multiply_into(dB3, dB2);
+        // W2.multiply_into(dB3, dB2);
+        W2.transpose_multiply_into(dB3, dB2);
         dB2.elementwise_into(Z2, dB2, [](auto left, auto right) {
             return left * right;
         });
 
-        W1.multiply_into(dB2, dB1);
+        W1.transpose_multiply_into(dB2, dB1);
         dB1.elementwise_into(Z1, dB1, [](auto left, auto right) {
             return left * right;
         });
 
-        break;
+        /*
+            Calculate dW's
+        */
+        dB3.multiply_transpose_into(N2, dW2);
+        dB2.multiply_transpose_into(N1, dW1);
+        dB1.multiply_transpose_into(im, dW0);
+
+        /*
+            Apply deltas
+        */
+        B3.elementwise_into(dB3, B3, [learning_rate](auto b, auto db) {
+            return b - db * learning_rate;
+        });
+        B2.elementwise_into(dB2, B2, [learning_rate](auto b, auto db) {
+            return b - db * learning_rate;
+        });
+        B1.elementwise_into(dB1, B1, [learning_rate](auto b, auto db) {
+            return b - db * learning_rate;
+        });
+        W2.elementwise_into(dW2, W2, [learning_rate](auto w, auto dw) {
+            return w - dw * learning_rate;
+        });
+        W1.elementwise_into(dW1, W1, [learning_rate](auto w, auto dw) {
+            return w - dw * learning_rate;
+        });
+        W0.elementwise_into(dW0, W0, [learning_rate](auto w, auto dw) {
+            return w - dw * learning_rate;
+        });
+
+
+        if (epoch % (epochs / 10) == 0) {
+            std::cout << std::fixed;
+            std::cout << std::endl << "=> Epoch: " << epoch << std::endl;
+            std::cout << "Cost: " << cost << std::endl;
+
+            // Prediction
+            std::cout << "Predicted:\t";
+            for (size_t i = 0; i < 10; i++) {
+                std::cout << N3(i, 0) << " ";
+            }
+            std::cout << std::endl;
+            std::cout << "Actual:\t\t";
+            for (size_t i = 0; i < 10; i++) {
+                std::cout << N3_actual(i, 0) << " ";
+            }
+        }
     }
 
     return 0;

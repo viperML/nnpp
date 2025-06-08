@@ -56,6 +56,31 @@ void Matrix::multiply_transpose_into(const Matrix& B, Matrix& result) {
 }
 
 // Performs result=this^T * B
-void transpose_multiply_into(const Matrix& B, Matrix& result) {}
+void Matrix::transpose_multiply_into(const Matrix& B, Matrix& result) {
+    // For this^T * B, dimensions should be:
+    // this^T: M x N (this is N x M), B: N x M, result: M x M
+    // Check if multiplication is valid: this->N must equal B.N (since this^T has dimensions this.M x this.N)
+    if (this->N != B.N) {
+        throw std::runtime_error(
+            "Matrix dimensions incompatible for transpose multiplication");
+    }
+
+    // Check if result matrix has correct dimensions: this->M x B.M
+    if (result.N != this->M || result.M != B.M) {
+        throw std::runtime_error("Result matrix has incorrect dimensions for transpose multiplication");
+    }
+
+    // Perform matrix multiplication: C[i][j] = sum(A^T[i][k] * B[k][j])
+    // Since A^T[i][k] = A[k][i], we have: C[i][j] = sum(A[k][i] * B[k][j])
+    for (size_t i = 0; i < this->M; ++i) {
+        for (size_t j = 0; j < B.M; ++j) {
+            float sum = 0.0f;
+            for (size_t k = 0; k < this->N; ++k) {
+                sum += this->data[k * this->M + i] * B.data[k * B.M + j];
+            }
+            result.data[i * result.M + j] = sum;
+        }
+    }
+}
 
 }  // namespace matrix
