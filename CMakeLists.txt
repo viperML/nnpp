@@ -15,11 +15,14 @@ target_sources(
     mnist.cpp
 )
 
-target_compile_options(nn++ PRIVATE -fsanitize=address)
-target_link_options(nn++ PRIVATE -fsanitize=address)
+target_compile_options(nn++ PRIVATE -fsanitize=address -g)
+target_link_options(nn++ PRIVATE -fsanitize=address -g -lbfd -ldl)
 target_include_directories(nn++ PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_options(nn++ PRIVATE -Wall -pedantic)
+
+find_package(Backward REQUIRED)
+target_link_libraries(nn++ PRIVATE Backward::Backward)
 
 enable_testing()
 find_package(GTest REQUIRED)

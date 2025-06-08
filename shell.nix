@@ -8,6 +8,8 @@ mkShell.override { stdenv = clangStdenv; } {
     clang-tools
     unzip
     gtest
+    backward-cpp
+    libbfd
   ];
 
   hardeningDisable = ["all"];

@@ -64,6 +64,9 @@ class Matrix {
     // Permorms result=this * B^T
     void multiply_transpose_into(const Matrix& B, Matrix& result);
 
+    // Performs result=this^T * B
+    void transpose_multiply_into(const Matrix& B, Matrix& result);
+
     // Index a value
     float& operator()(size_t i, size_t j) {
         if (i >= N || j >= M) {
@@ -111,6 +114,13 @@ class Matrix {
         return res;
     }
 
+    void clone_into(Matrix& dest) {
+        if (N != dest.N || M != dest.M) {
+            throw std::invalid_argument("Destination matrix dimensions must match");
+        }
+        dest.data = data;  // Copy data
+    }
+
     void operator-=(Matrix& B) {
         if (N != B.N || M != B.M) {
             throw std::invalid_argument("Matrix dimensions must match for subtraction");
@@ -120,6 +130,11 @@ class Matrix {
         }
     }
 
+    void operator*(float x) {
+        for (auto& value : data) {
+            value *= x;
+        }
+    }
 };
 
 }  // namespace matrix

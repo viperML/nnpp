@@ -55,4 +55,7 @@ void Matrix::multiply_transpose_into(const Matrix& B, Matrix& result) {
     }
 }
 
+// Performs result=this^T * B
+void transpose_multiply_into(const Matrix& B, Matrix& result) {}
+
 }  // namespace matrix

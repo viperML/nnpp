@@ -1,3 +1,4 @@
+#include <backward.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -15,6 +16,13 @@ float sigmoid(float x) {
     auto res = std::exp(x);
     return res / (1 + res);
 }
+
+float sigmoid_derivative(float x) {
+    auto res = sigmoid(x);
+    return res * (1 - res);
+}
+
+backward::SignalHandling sh{};
 
 int main() {
     auto cwd = std::filesystem::current_path();
@@ -44,10 +52,13 @@ int main() {
     Matrix N2(16, 1);
     Matrix N3(10, 1);
     Matrix N3_actual(10, 1);
+    auto Z1 = N1.cloned();
+    auto Z2 = N2.cloned();
+    auto Z3 = N3.cloned();
 
-    auto N1_prev = N1.cloned();
-    auto N2_prev = N2.cloned();
-    auto N3_prev = N3.cloned();
+    // auto N1_prev = N1.cloned();
+    // auto N2_prev = N2.cloned();
+    // auto N3_prev = N3.cloned();
 
     Matrix B1(N1.N, N1.M, init);
     Matrix B2(N2.N, N2.M, init);
@@ -83,20 +94,25 @@ int main() {
         // Forward propagation
 
         /// First hidden layer
-        W0.multiply_into(im, N1);
-        N1.sum_into(B1);
+        W0.multiply_into(im, Z1);
+        Z1.sum_into(B1);
+        Z1.clone_into(N1);
         N1.apply(sigmoid);
+        Z1.apply(sigmoid_derivative);
 
         /// Second hidden layer
-        W1.multiply_into(N1, N2);
-        N2.sum_into(B2);
+        W1.multiply_into(N1, Z2);
+        Z2.sum_into(B2);
+        Z2.clone_into(N2);
         N2.apply(sigmoid);
+        Z2.apply(sigmoid_derivative);
 
         /// Final layer
-        W2.multiply_into(N2, N3);
-        N3.sum_into(B3);
+        W2.multiply_into(N2, Z3);
+        Z3.sum_into(B3);
+        Z3.clone_into(N3);
         N3.apply(sigmoid);
-        doPrint ? N3.print() : void();
+        Z3.apply(sigmoid_derivative);
 
         // Cost calculation
         float cost = 0.0f;
@@ -107,14 +123,31 @@ int main() {
 
         doPrint&& std::cout << std::fixed << "Cost: " << cost << std::endl;
 
-        N3.elementwise_into(N3_actual, dB3, [learning_rate](auto n3, auto n3a) {
-            return (n3 - n3a) * learning_rate;
+        // N3.elementwise_into(N3_actual, dB3, [learning_rate](auto n3, auto
+        // n3a) {
+        //     return (n3 - n3a) * learning_rate;
+        // });
+        // dB3.multiply_transpose_into(N2, dW2);
+        // W2 -= dW2;
+
+        /*
+            Calculate dB's
+        */
+        N3.elementwise_into(N3_actual, dB3, [](auto n3, auto n3a) {
+            return n3 - n3a;
         });
-        dB3.multiply_into(N2, dW2); // FIXME
-        W2 -= dW2;
 
+        W2.multiply_into(dB3, dB2);
+        dB2.elementwise_into(Z2, dB2, [](auto left, auto right) {
+            return left * right;
+        });
 
+        W1.multiply_into(dB2, dB1);
+        dB1.elementwise_into(Z1, dB1, [](auto left, auto right) {
+            return left * right;
+        });
 
+        break;
     }
 
     return 0;
