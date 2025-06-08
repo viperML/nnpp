@@ -11,7 +11,10 @@
 
 using namespace matrix;
 
-float relu(float x) { return (x > 0) ? x : 0.0f; }
+float sigmoid(float x) {
+    auto res = std::exp(x);
+    return res / (1 + res);
+}
 
 int main() {
     auto cwd = std::filesystem::current_path();
@@ -31,7 +34,7 @@ int main() {
     // RNG
     // std::random_device rd;
     std::mt19937 gen(0);
-    std::uniform_real_distribution<> dist(0, 1.0);
+    std::uniform_real_distribution<> dist(-0.1, 0.1);
     auto init = [&dist, &gen](size_t i, size_t j) {
         return static_cast<float>(dist(gen));
     };
@@ -50,10 +53,12 @@ int main() {
     auto W1 = Matrix(N2.N, N1.N, init);
     auto W2 = Matrix(N3_predict.N, N2.N, init);
 
-    auto epochs = 3;
+    auto epochs = 100;
 
     for (auto epoch : std::views::iota(0, epochs)) {
-        std::cout << std::endl << "=> Epoch: " << epoch << std::endl;
+        auto doPrint = epoch % 10 == 0;
+
+        doPrint && std::cout <<  std::endl << "=> Epoch " << epoch << std::endl;
 
         auto im = images[epoch];
         auto la = labels[epoch];
@@ -67,18 +72,18 @@ int main() {
         /// First hidden layer
         W0.multiply_into(im, N1);
         N1.sum_into(B1);
-        N1.apply(relu);
+        N1.apply(sigmoid);
 
         /// Second hidden layer
         W1.multiply_into(N1, N2);
         N2.sum_into(B2);
-        N2.apply(relu);
+        N2.apply(sigmoid);
 
         /// Final layer
         W2.multiply_into(N2, N3_predict);
         N3_predict.sum_into(B3);
-        N3_predict.apply(relu);
-        N3_predict.print();
+        N3_predict.apply(sigmoid);
+        doPrint ? N3_predict.print() : void();
 
         // Cost calculation
         float cost = 0.0f;
@@ -87,7 +92,7 @@ int main() {
             cost += diff * diff;
         }
 
-        std::cout << std::fixed << "Cost: " << cost  << std::endl;
+        doPrint && std::cout << std::fixed << "Cost: " << cost  << std::endl;
     }
 
     return 0;
