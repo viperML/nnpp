@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <backward.hpp>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -41,154 +42,167 @@ int main() {
     std::cout << "Number of labels: " << labels.size() << std::endl;
 
     // RNG
-    // std::random_device rd;
     std::mt19937 gen(0);
     std::uniform_real_distribution<> dist(-0.1, 0.1);
     auto init = [&dist, &gen](size_t i, size_t j) {
         return static_cast<float>(dist(gen));
     };
 
-    // N0 is images[number]
-    Matrix Layer1(16, 1);
-    Matrix Layer2(16, 1);
-    Matrix Layer3(10, 1);
-    Matrix Layer3_actual(10, 1);
-    auto Activation1 = Layer1.cloned();
-    auto Activation2 = Layer2.cloned();
-    auto Activation3 = Layer3.cloned();
+    // Declarative layers
+    Matrix RealLayer(10, 1);
+    std::vector<Matrix> Layer = {
+        Matrix(images[0].N, 1),
+        // Matrix(128, 1),
+        Matrix(16, 1),
+        Matrix(16, 1),
+        Matrix(RealLayer.N, 1)
+    };
 
-    // auto N1_prev = N1.cloned();
-    // auto N2_prev = N2.cloned();
-    // auto N3_prev = N3.cloned();
+    // Declarative Biases
+    std::vector<Matrix> Bias{};
+    std::vector<Matrix> Activation{};
+    for (auto layer : Layer) {
+        Bias.push_back(layer.cloned());
+        Activation.push_back(layer.cloned());
+    }
 
-    Matrix Bias1(Layer1.N, Layer1.M, init);
-    Matrix Bias2(Layer2.N, Layer2.M, init);
-    Matrix Bias3(Layer3.N, Layer3.M, init);
+    // Declarative Weights
+    std::vector<Matrix> Weight{};
+    for (size_t i = 0; i < Layer.size() - 1; i++) {
+        Weight.push_back(Matrix(Layer[i + 1].N, Layer[i].N, init));
+    }
 
-    Matrix Weight0(Layer1.N, images[0].N, init);
-    Matrix Weight1(Layer2.N, Layer1.N, init);
-    Matrix Weight2(Layer3.N, Layer2.N, init);
-
-    auto dW0 = Weight0.clone_seeded(0.0f);
-    auto dW1 = Weight1.clone_seeded(0.0f);
-    auto dW2 = Weight2.clone_seeded(0.0f);
-    auto dB1 = Bias1.clone_seeded(0.0f);
-    auto dB2 = Bias2.clone_seeded(0.0f);
-    auto dB3 = Bias3.clone_seeded(0.0f);
+    // Declarative deltas
+    std::vector<Matrix> dWeight{};
+    for (auto w : Weight) {
+        dWeight.push_back(w.clone_seeded(0.0f));
+    }
+    std::vector<Matrix> dBias{};
+    for (auto b : Bias) {
+        dBias.push_back(b.clone_seeded(0.0f));
+    }
 
     auto epochs = std::max(static_cast<size_t>(10000), images.size());
     bool do_break = false;
 
-    for (auto epoch : std::views::iota(static_cast<size_t>(0), epochs)) {
-        auto im = images[epoch];
-        auto la = labels[epoch];
+    std::vector<float> window{};
 
+    auto now = std::chrono::steady_clock::now();
+
+    for (size_t epoch = 0; epoch < epochs; epoch++) {
+        auto image = images[epoch];
+        auto label = labels[epoch];
+
+        // Populate real layer
         for (uint8_t i = 0; i < 10; i++) {
-            Layer3_actual(i, 0) = (la == i) ? 1.0f : 0.0f;
+            RealLayer(i, 0) = (label == i) ? 1.0f : 0.0f;
         }
 
+        // Copy input image to first layer
+        image.clone_into(Layer[0]);
+        image.clone_into(Activation[0]);
+
         // Forward propagation
-
-        /// First hidden layer
-        Weight0.multiply_into(im, Activation1);
-        Activation1.sum_into(Bias1);
-        Activation1.clone_into(Layer1);
-        Layer1.apply(sigmoid);
-
-        /// Second hidden layer
-        Weight1.multiply_into(Layer1, Activation2);
-        Activation2.sum_into(Bias2);
-        Activation2.clone_into(Layer2);
-        Layer2.apply(sigmoid);
-
-        /// Final layer
-        Weight2.multiply_into(Layer2, Activation3);
-        Activation3.sum_into(Bias3);
-        Activation3.clone_into(Layer3);
-        Layer3.apply(sigmoid);
+        for (size_t i = 0; i < Weight.size(); i++) {
+            Weight[i].multiply_into(Layer[i], Activation[i + 1]);
+            Activation[i + 1].sum_into(Bias[i + 1]);
+            Activation[i + 1].clone_into(Layer[i + 1]);
+            Layer[i + 1].apply(sigmoid);
+        }
 
         // Cost calculation
         float cost = 0.0f;
-        for (size_t i = 0; i < 10; i++) {
-            auto diff = Layer3(i, 0) - Layer3_actual(i, 0);
+        for (size_t i = 0; i < RealLayer.N; i++) {
+            auto diff = Layer.back()(i, 0) - RealLayer(i, 0);
             cost += diff * diff;
-        }
-        if (cost <= 0.001f) {
-            do_break = true;
         }
         float learning_rate = 0.1f;  // Fixed learning rate
 
-        // N3.elementwise_into(N3_actual, dB3, [learning_rate](auto n3, auto
-        // n3a) {
-        //     return (n3 - n3a) * learning_rate;
-        // });
-        // dB3.multiply_transpose_into(N2, dW2);
-        // W2 -= dW2;
+        // Backpropagation
+        // Calculate output layer error
+        Layer.back().elementwise_into(
+            RealLayer, dBias.back(), [](auto n, auto r) { return n - r; }
+        );
 
-        /*
-            Calculate dB's
-        */
-        Layer3.elementwise_into(Layer3_actual, dB3, [](auto n3, auto n3a) {
-            return n3 - n3a;
-        });
+        // Backpropagate through hidden layers
+        for (int i = static_cast<int>(Weight.size()) - 1; i >= 0; i--) {
+            if (i > 0) {
+                // Calculate dBias for hidden layers
+                Weight[i].transpose_multiply_into(dBias[i + 1], dBias[i]);
+                dBias[i].elementwise_into(
+                    Activation[i],
+                    dBias[i],
+                    [](auto left, auto right) {
+                        return left * sigmoid_derivative(right);
+                    }
+                );
+            }
 
-        Weight2.transpose_multiply_into(dB3, dB2);
-        dB2.elementwise_into(Activation2, dB2, [](auto left, auto right) {
-            return left * sigmoid_derivative(right);
-        });
+            // Calculate dWeight
+            dBias[i + 1].multiply_transpose_into(Layer[i], dWeight[i]);
+        }
+        // Apply deltas to biases (skip input layer at index 0)
+        for (size_t i = 1; i < Bias.size(); i++) {
+            Bias[i].elementwise_into(
+                dBias[i],
+                Bias[i],
+                [learning_rate](auto b, auto db) {
+                    return b - db * learning_rate;
+                }
+            );
+        }
 
-        Weight1.transpose_multiply_into(dB2, dB1);
-        dB1.elementwise_into(Activation1, dB1, [](auto left, auto right) {
-            return left * sigmoid_derivative(right);
-        });
+        // Apply deltas to weights
+        for (size_t i = 0; i < Weight.size(); i++) {
+            Weight[i].elementwise_into(
+                dWeight[i],
+                Weight[i],
+                [learning_rate](auto w, auto dw) {
+                    return w - dw * learning_rate;
+                }
+            );
+        }
 
-        /*
-            Calculate dW's
-        */
-        dB3.multiply_transpose_into(Layer2, dW2);
-        dB2.multiply_transpose_into(Layer1, dW1);
-        dB1.multiply_transpose_into(im, dW0);
+        float max_pred = 0.0f;
+        for (uint8_t i = 0; i<10; i++) {
+            if (Layer.back()(i, 0) > max_pred) {
+                max_pred = Layer.back()(i, 0);
+            }
+        }
+        window.push_back(max_pred);
+        if (epoch % 30 == 0) {
+            // Calculate the average of the window
+            float avg = std::accumulate(window.begin(), window.end(), 0.0f) / window.size();
+            if (avg > 0.9f) {
+                do_break = true;
+            }
+            window.clear();
+        }
 
-        /*
-            Apply deltas
-        */
-        Bias3.elementwise_into(dB3, Bias3, [learning_rate](auto b, auto db) {
-            return b - db * learning_rate;
-        });
-        Bias2.elementwise_into(dB2, Bias2, [learning_rate](auto b, auto db) {
-            return b - db * learning_rate;
-        });
-        Bias1.elementwise_into(dB1, Bias1, [learning_rate](auto b, auto db) {
-            return b - db * learning_rate;
-        });
-        Weight2.elementwise_into(dW2, Weight2, [learning_rate](auto w, auto dw) {
-            return w - dw * learning_rate;
-        });
-        Weight1.elementwise_into(dW1, Weight1, [learning_rate](auto w, auto dw) {
-            return w - dw * learning_rate;
-        });
-        Weight0.elementwise_into(dW0, Weight0, [learning_rate](auto w, auto dw) {
-            return w - dw * learning_rate;
-        });
 
-        if (epoch % (epochs / 10) == 0 || do_break) {
+        if (epoch % 1000 == 0 || do_break) {
             std::cout << std::fixed;
             std::cout << std::endl << "=> Epoch: " << epoch << std::endl;
             std::cout << "Cost: " << cost << std::endl;
 
             // Prediction
             std::cout << "Predicted:\t";
-            for (size_t i = 0; i < 10; i++) {
-                std::cout << Layer3(i, 0) << " ";
+            for (size_t i = 0; i < RealLayer.N; i++) {
+                std::cout << Layer.back()(i, 0) << " ";
             }
             std::cout << std::endl;
             std::cout << "Actual:\t\t";
-            for (size_t i = 0; i < 10; i++) {
-                std::cout << Layer3_actual(i, 0) << " ";
+            for (size_t i = 0; i < RealLayer.N; i++) {
+                std::cout << RealLayer(i, 0) << " ";
             }
         }
 
-        if (do_break) break;
+        if (do_break) {
+            auto elapsed = std::chrono::steady_clock::now() - now;
+            auto t = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+            std::cout << std::endl << "Training complete in " << t << " ms." << std::endl;
+            break;
+        };
     }
 
     return 0;
