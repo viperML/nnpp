@@ -132,21 +132,14 @@ int main() {
             return n3 - n3a;
         });
 
-        // W2.multiply_into(dB3, dB2);
         W2.transpose_multiply_into(dB3, dB2);
-        // Apply sigmoid derivative to the pre-activation values (Z2)
-        auto Z2_sigmoid_deriv = Z2.cloned();
-        Z2_sigmoid_deriv.apply(sigmoid_derivative);
-        dB2.elementwise_into(Z2_sigmoid_deriv, dB2, [](auto left, auto right) {
-            return left * right;
+        dB2.elementwise_into(Z2, dB2, [](auto left, auto right) {
+            return left * sigmoid_derivative(right);
         });
 
         W1.transpose_multiply_into(dB2, dB1);
-        // Apply sigmoid derivative to the pre-activation values (Z1)
-        auto Z1_sigmoid_deriv = Z1.cloned();
-        Z1_sigmoid_deriv.apply(sigmoid_derivative);
-        dB1.elementwise_into(Z1_sigmoid_deriv, dB1, [](auto left, auto right) {
-            return left * right;
+        dB1.elementwise_into(Z1, dB1, [](auto left, auto right) {
+            return left * sigmoid_derivative(right);
         });
 
         /*
