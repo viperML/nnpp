@@ -10,6 +10,7 @@ mkShell.override { stdenv = clangStdenv; } {
     gtest
     backward-cpp
     libbfd
+    bazelisk
   ];
 
   hardeningDisable = ["all"];
